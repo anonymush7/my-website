@@ -1,2 +1,4 @@
 # my-website
-n/a
+This is my first website.
+Written by ChatGPT.
+Published June 20, 2026.
