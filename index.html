@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kard</title>
+<link rel="icon" type="image/png" href="">
+
+<style>
+body{
+    margin:0;
+    font-family: Arial,sans-serif;
+    background: #f2d3a1;
+    text-align:center;
+	color: #1e120c;
+}
+
+h2,h3{margin: 10px;}
+
+button,select,input,textarea{
+    font-size: 16px;
+    padding: 8px 12px;
+	background: #e3b67d;
+    border: 1px solid #1e120c;
+	border-radius: 10px;
+	color: #1e120c;
+}
+
+button:hover,select:hover{
+	background: #B69265;
+	cursor: pointer;
+}
+
+#setup,#study,#summary,#deckView{
+    max-width: 500px; /* original: 900px */
+    margin:auto;
+    padding:20px;
+}
+
+textarea{
+    width:80%;
+    height: 200px;
+    resize:vertical;
+}
+
+.controls{
+   	display:flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom:20px;
+
+}
+
+.scene{
+    width: 100%; /* --- original: 320px --- */
+    height: 170px; /* --- original: 190px --- */
+    margin:20px auto;
+    perspective:1000px;
+}
+
+.card{
+    width: 100%;
+    height: 100%;
+    position:relative;
+    transform-style:preserve-3d;
+    transition: none;
+    cursor:pointer;
+}
+
+.card.flipped{
+    transform:rotateY(180deg);
+}
+
+.face{
+    position:absolute;
+    width:100%;
+    height:100%;
+    border:3px solid #1e120c;
+    border-radius: 15px;
+    backface-visibility:hidden;
+
+    /* Use normal block layout instead of flex */
+    display:block;
+    box-sizing:border-box;
+    padding:15px;
+
+    /* Center horizontally only */
+    text-align:center;
+
+    /* Center short text vertically */
+    align-content:center;
+
+    /* Wrap long text */
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+
+    /* Allow scrolling when needed */
+    overflow-y:auto;
+
+    font-size:24px;
+	color: #1e120c;
+}
+
+.front{
+    background: #e3b67d;
+}
+
+.back{
+    background: #B69265;
+    transform: rotateY(180deg);
+}
+
+.correctFlash .front,
+.correctFlash .back{
+    background: #A3C586 !important;
+}
+
+.wrongFlash .front,
+.wrongFlash .back{
+    background: #ED8D72 !important;
+}
+
+#answerBox{
+	text-align: center;
+    width:300px;
+    max-width:90%;
+}
+
+.specials{
+    display:grid;
+    grid-template-columns: repeat(10, auto); /* to change number of special characters per row */
+    justify-content:center;
+    gap:6px 10px;
+    margin-top:10px;
+}
+
+.specials button{
+    min-width:40px;
+}
+
+.markButtons{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:15px;
+	cursor: pointer;
+}
+
+#wrongBtn{
+    background: #ED8D72;
+	width: 125px;
+}
+
+#correctBtn{
+    background: #A3C586;
+	width:125px;
+}
+
+#wrongBtn:hover{
+    background: #ED7272;
+}
+
+#correctBtn:hover{
+    background: #79B181;
+}
+
+
+table{
+    margin: auto;
+    border-collapse: collapse;
+    width:95%;
+	color: #1e120c;
+}
+
+th,td{
+    border: 1px solid #1e120c;
+	padding: 7px;
+    text-align: center;
+}
+
+th { background-color: #E3B67D; }
+
+.hidden{
+    display:none;
+}
+</style>
+</head>
+
+<body>
+
+<!-- This html is written by ChatGPT. -->
+
+<div id="setup">
+
+    <br>
+	
+	<h2>Flashcard Setup</h2> <br>
+
+	<p>Paste your questions and answers below (one card per line):</p> <br>
+
+	<textarea id="deckInput"></textarea> <br>   <!-- placeholder="Hola:Hello&#10;Adiós:Goodbye&#10;Casa:House" -->
+
+	<p>Separator: 
+		<select id="separator">
+			<option value=":">Colon ( : )</option>
+			<option value=";">Semicolon ( ; )</option>
+			<option value="-">Hyphen ( - )</option>
+			<option value="|">Vertical Bar ( | )</option>
+			<option value=",">Comma ( , )</option>
+			<option value="=>">Arrow ( => )</option>
+		</select>
+	</p>
+
+<button onclick="loadDeck()">Start</button> <br><br>
+</div>
+
+<div id="study" class="hidden">
+
+	<br><br>
+
+    <div class="controls">
+        <button onclick="shuffleRemaining()">Shuffle</button>
+        <button onclick="endRound()">End round</button>
+    </div>
+
+	<br>
+
+    <div class="scene">
+        <div class="card" id="card" onclick="flipCard()">
+            <div class="face front" id="frontText"></div>
+            <div class="face back" id="backText"></div>
+        </div>
+    </div>
+
+	<h3 id="progress"></h3> <br><br>
+
+    <input id="answerBox" autocomplete="off">
+    
+	<br><br><br>
+
+    <!-- <button onclick="submitAnswer()">Submit</button> <br><br><br> -->
+
+    <div class="specials" id="specials"></div>
+
+	<br><br>
+
+    <div class="markButtons">
+        <button id="wrongBtn" onclick="markCurrent(false)">Incorrect</button>
+        <button id="correctBtn" onclick="markCurrent(true)">Correct</button>
+    </div>
+
+    <br>
+
+    <button onclick="undoLast()">Undo</button>
+
+</div>
+
+<div id="summary" class="hidden">
+	<br><br>
+    <h2>Round Complete</h2>
+	<br>
+    <h3 id="scoreText"></h3>
+	<br><br>
+    <div id="summaryButtons"></div>
+</div>
+
+<div id="deckView" class="hidden">
+	<br>
+    <h2>All Cards</h2> <br>
+	<button onclick="backFromDeck()">Back</button> <br><br>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Question</th>
+                <th>Answer</th>
+            </tr>
+        </thead>
+        <tbody id="deckTable"></tbody>
+    </table>
+
+    <br>
+
+    
+</div>
+
+<script>
+const specialChars=["á","é","í","ó","ú","ñ","ä","ö","ü","ß"];
+
+const specialsDiv=document.getElementById("specials");
+
+specialChars.forEach(c=>{
+    const b=document.createElement("button");
+    b.textContent=c;
+    b.onclick=()=>{
+        const box=document.getElementById("answerBox");
+        const s=box.selectionStart;
+        const e=box.selectionEnd;
+        box.value=
+            box.value.substring(0,s)+
+            c+
+            box.value.substring(e);
+        box.focus();
+        box.selectionStart=box.selectionEnd=s+1;
+    };
+    specialsDiv.appendChild(b);
+});
+
+/* --- Space bar as shortcut key to flip the card (delete if not working) --- */
+document.addEventListener("keydown", (event) => {
+    const target = event.target;
+
+    // Don't intercept Space while typing
+    if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+    ) {
+        return;
+    }
+
+    // Only flip if the card is visible
+    const card = document.getElementById("card");
+    const isVisible = card && card.offsetParent !== null;
+
+    if (event.code === "Space" && isVisible) {
+        event.preventDefault();
+        flipCard();
+    }
+});
+
+/* --- Enter key as shortcut key to submit the answer --- */
+document.getElementById("answerBox").addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+        e.preventDefault();
+        submitAnswer();
+    }
+});
+
+/* --- Arrows shortcut key for Incorrect/Correct buttons --- */
+document.addEventListener("keydown", function (e) {
+    // Ignore if user is typing or editing text
+    const active = document.activeElement;
+    if (
+        active &&
+        (
+            active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            active.tagName === "SELECT" ||
+            active.isContentEditable
+        )
+    ) {
+        return;
+    }
+
+    const wrongBtn = document.getElementById("wrongBtn");
+    const correctBtn = document.getElementById("correctBtn");
+
+    // Only work if both buttons exist and are visible
+    if (
+        !wrongBtn ||
+        !correctBtn ||
+        wrongBtn.offsetParent === null ||
+        correctBtn.offsetParent === null
+    ) {
+        return;
+    }
+
+    if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        markCurrent(false);
+    } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        markCurrent(true);
+    }
+});
+
+let masterDeck=[];
+let queue=[];
+let wrongCards=[];
+let currentIndex=0;
+let history=[];
+let roundCorrect=0;
+let roundWrong=0;
+
+function normalize(s){
+    return s.trim().toLowerCase();
+}
+
+function loadDeck(){
+
+    const sep=document.getElementById("separator").value;
+
+    const text=document.getElementById("deckInput").value.trim();
+
+    if(!text){
+        alert("Enter cards.");
+        return;
+    }
+
+    masterDeck=[];
+
+    text.split(/\n/).forEach(line=>{
+        if(!line.trim()) return;
+
+        const parts=line.split(sep);
+
+        if(parts.length<2) return;
+
+        masterDeck.push({
+            q:parts[0].trim(),
+            a:parts.slice(1).join(sep).trim()
+        });
+    });
+
+    queue=masterDeck.map(c=>({...c}));
+
+    wrongCards=[];
+
+    startRound();
+}
+
+function startRound(){
+
+    currentIndex=0;
+    roundCorrect=0;
+    roundWrong=0;
+    history=[];
+
+    document.getElementById("setup").classList.add("hidden");
+    document.getElementById("summary").classList.add("hidden");
+    document.getElementById("deckView").classList.add("hidden");
+    document.getElementById("study").classList.remove("hidden");
+
+    showCard();
+}
+
+function showCard(){
+
+    if(currentIndex>=queue.length){
+        finishRound();
+        return;
+    }
+
+    const c=queue[currentIndex];
+
+    const card=document.getElementById("card");
+
+    card.className="card";
+
+    document.getElementById("frontText").textContent=c.q;
+    document.getElementById("backText").textContent=c.a;
+
+    document.getElementById("answerBox").value="";
+
+    updateProgress();
+}
+
+function flipCard(){
+    document.getElementById("card").classList.toggle("flipped");
+}
+
+function submitAnswer(){
+
+    const typed=normalize(document.getElementById("answerBox").value);
+
+    const expected=normalize(queue[currentIndex].a);
+
+    markCurrent(typed===expected);
+}
+
+function markCurrent(correct){
+
+    const c=queue[currentIndex];
+
+    history.push({
+        index:currentIndex,
+        card:c,
+        correct
+    });
+
+    const card=document.getElementById("card");
+
+    if(correct){
+        roundCorrect++;
+        card.classList.add("correctFlash");
+    }else{
+        roundWrong++;
+        wrongCards.push(c);
+        card.classList.add("wrongFlash");
+    }
+
+    setTimeout(()=>{
+        currentIndex++;
+        showCard();
+    },400);
+}
+
+function updateProgress(){
+    document.getElementById("progress").textContent=
+        (currentIndex)+"/"+queue.length;
+}
+
+function shuffleRemaining(){
+
+    const remain=queue.slice(currentIndex);
+
+    for(let i=remain.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [remain[i],remain[j]]=[remain[j],remain[i]];
+    }
+
+    for(let i=0;i<remain.length;i++){
+        queue[currentIndex+i]=remain[i];
+    }
+
+    const card=document.getElementById("card");
+    card.classList.add("shake");
+    setTimeout(()=>card.classList.remove("shake"),450);
+
+    showCard();
+}
+
+function endRound(){
+
+    for(let i=currentIndex;i<queue.length;i++){
+        wrongCards.push(queue[i]);
+        roundWrong++;
+    }
+
+    finishRound();
+}
+
+function finishRound(){
+
+    document.getElementById("study").classList.add("hidden");
+    document.getElementById("summary").classList.remove("hidden");
+
+    document.getElementById("scoreText").textContent=
+        "Score: "+roundCorrect+" / "+queue.length;
+
+    const div=document.getElementById("summaryButtons");
+    div.innerHTML="";
+
+	if(wrongCards.length>0){
+
+		const review=document.createElement("button");
+		review.textContent="Review wrong cards";
+		review.onclick=()=>{
+
+			queue=wrongCards.map(c=>({...c}));
+			wrongCards=[];
+
+			startRound();
+		};
+		div.appendChild(review);
+
+		div.appendChild(document.createElement("br"));
+		div.appendChild(document.createElement("br"));
+
+	}else{
+
+		const done=document.createElement("h3");
+		done.textContent="Congratulations! All cards reviewed.";
+		div.appendChild(done);
+
+		div.appendChild(document.createElement("br"));
+		div.appendChild(document.createElement("br"));
+	}
+
+    const view=document.createElement("button");
+    view.textContent="View all cards";
+    view.onclick=viewDeck;
+
+    div.appendChild(view);
+
+	div.appendChild(document.createElement("br"));
+	div.appendChild(document.createElement("br"));
+
+	const reload=document.createElement("button");
+	reload.textContent="Load new deck";
+	reload.onclick=()=>{
+		document.getElementById("summary").classList.add("hidden");
+		document.getElementById("setup").classList.remove("hidden");
+	};
+	div.appendChild(reload);
+}
+
+function viewDeck(){
+
+    document.getElementById("summary").classList.add("hidden");
+    document.getElementById("deckView").classList.remove("hidden");
+
+    const tbody=document.getElementById("deckTable");
+
+    tbody.innerHTML="";
+
+    masterDeck.forEach((c,i)=>{
+
+        const tr=document.createElement("tr");
+
+        tr.innerHTML=
+        "<td>"+(i+1)+"</td>"+
+        "<td>"+escapeHtml(c.q)+"</td>"+
+        "<td>"+escapeHtml(c.a)+"</td>";
+
+        tbody.appendChild(tr);
+
+    });
+}
+
+function backFromDeck(){
+
+    document.getElementById("deckView").classList.add("hidden");
+    document.getElementById("summary").classList.remove("hidden");
+
+}
+
+function undoLast(){
+
+    if(history.length===0) return;
+
+    const last=history.pop();
+
+    currentIndex=last.index;
+
+    if(last.correct){
+        roundCorrect--;
+    }else{
+        roundWrong--;
+        wrongCards.pop();
+    }
+
+    showCard();
+}
+
+function escapeHtml(str){
+    return str
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+}
+</script>
+
+</body>
+</html>
